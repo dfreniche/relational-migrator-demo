@@ -1,0 +1,69 @@
+# This composer file starts several containers: MongoDB DB, a PostgreSQL DB and starts a web interface to admin PostgreSQL
+# Can be used to test the MongoDB Relational migrator, as some data is imported into PostgreSQL
+
+services:
+  # the postgreSQL DB
+  postgresql:
+    image: postgres
+    ports:
+      - 5432:5432
+    environment:
+      - POSTGRES_PASSWORD=password
+    healthcheck:
+      test: su -c 'pg_isready' postgres
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 2s
+  # web interface to admin Postgres
+  pgadmin:
+    image: dpage/pgadmin4
+    ports:
+      - 8080:80
+    depends_on:
+      postgresql:
+        condition: service_healthy
+    environment:
+      - PGADMIN_DEFAULT_EMAIL=sql@mongodb.com
+      - PGADMIN_DEFAULT_PASSWORD=password
+    volumes:
+      - ./pgadmin:/var/lib/pgadmin
+  # we import some data into the default DB in PostgreSQL (called postgres)
+  # file dvdrental should be in the same directory as this docker compose file
+  postgresql_import:
+    image: postgres
+    depends_on:
+      postgresql:
+        condition: service_healthy
+    restart: "no"
+    command: sh -c "cd /tmp/import && gunzip --decompress --force --keep --verbose /tmp/import/dvdrental.tar.gz && pg_restore --clean --if-exists --verbose -U postgres -d 'postgres://postgres:password@postgresql:5432/postgres' /tmp/import/dvdrental.tar"
+    volumes:
+      - ./:/tmp/import
+  # a MongoDB instance
+  mongodb:
+    image: mongodb/mongodb-community-server
+    ports:
+      - "27017:27017"
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=mongodb
+      - MONGO_INITDB_ROOT_PASSWORD=password
+    volumes:
+      - type: bind
+        source: ./data
+        target: /data/db
+      - ./:/tmp/import
+    healthcheck:
+      test: mongosh --eval 'db.hello()'
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 2s
+    # to connect to this MongoDB instance use this connection string: mongodb://dvds:password@localhost:27017/dvds
+  mongodb_create_users:
+    image: mongodb/mongodb-community-server
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    volumes:
+      - ./:/tmp/import
+    command: mongosh -u mongodb -p password --host mongodb admin -f /tmp/import/create-mongodb-user.js
