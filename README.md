@@ -23,6 +23,7 @@ This will start 5 containers:
 
 - you can access pgadmin at https://localhost:8080, (user: `sql@mongodb.com`, password=`password`) to show there's actually some data in that PostgreSQL DB. The connection to the PostgreSQL server is already configured. 
 - once shown, access to MongoDB using MongoDB Compass to show the dvds Database, it should be empty. To connect to this MongoDB instance use this connection string: `mongodb://dvds:password@localhost:27017/dvds`
+- To connect directly to PostgreSQL from Relational Migrator and do the import, use this connection string: `postgres://postgres:password@postgresql:5432/postgres`
 - now run the Relational Migrator and import data into PostgreSQL! 
 
 ## Stopping container and cleaning data
